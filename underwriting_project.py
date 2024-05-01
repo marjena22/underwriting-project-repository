@@ -9,7 +9,7 @@ data_for_graphs = pd.read_csv('/Users/andriydavydyuk/Desktop/Underwriting_Projec
 submarket_zipcode = pd.read_csv('/Users/andriydavydyuk/Desktop/Underwriting_Project/Zip_to_Submarket.csv', delimiter=',')
 multifamily_file = pd.read_csv('/Users/andriydavydyuk/Desktop/Underwriting_Project/multifamily.csv', delimiter=',')
 
-########################__________Current In-Place Rents Table____________################################
+#######################__________Current In-Place Rents Table____________################################
 
 # Access the DataFrame from the dictionary using the sheet name
 rent_roll_sheet_name = 'Sheet1' 
@@ -99,7 +99,7 @@ total_rent_month_all_units = np.sum(in_place_rents_table_df['# of Units'] * in_p
 total_rent_month_per_sf = total_rent_month_all_units / total_square_feet_all_units if total_square_feet != 0 else 0
 
 # Create a dictionary with total values
-total_values = {
+total_t12_value = {
     '# of Units': total_units,
     'Type': '',
     'SF': total_square_feet_all_units,
@@ -108,7 +108,7 @@ total_values = {
 }
 
 # Append the total values as the last row in the DataFrame
-in_place_rents_table_df.loc[len(in_place_rents_table_df)] = total_values
+in_place_rents_table_df.loc[len(in_place_rents_table_df)] = total_t12_value
 
 # default stabelized rents table
 stabilized_rent_df = pd.DataFrame({
@@ -233,7 +233,7 @@ rent_premium_df = pd.DataFrame({
 
 rent_premium_df = rent_premium_df.reindex(stabilized_rent_df.index)
 
-total_rent_premium_over_in_place = total_values_stabilized['Stabilized Rent/Month'] - total_values['Rent/Month']
+total_rent_premium_over_in_place = total_values_stabilized['Stabilized Rent/Month'] - total_t12_value['Rent/Month']
 
 rent_premium_df.loc[len(in_place_rents_table_df)] = total_rent_premium_over_in_place
 
@@ -243,8 +243,11 @@ rent_premium_df.loc[len(in_place_rents_table_df)] = total_rent_premium_over_in_p
 # Determine Month Increase Starts (always 1)
 month_increase_starts = 1 
 
-# Check if any type contains 'P'
-if any('P' in t for t in units):
+# user_question_renovation = input("Do you want renovation? (Yes/No): ").strip()
+# User input if he/she wants renovation, No - is a default
+user_question_renovation = 'No'
+
+if user_question_renovation.lower() == 'yes':
     month_increase_complete = 24
 else:
     month_increase_complete = 12
@@ -261,9 +264,9 @@ t12_sheet_name = '12 Month Trend'
 
 t12_df = t12_file[t12_sheet_name]
 
-total_values = t12_df.columns[-2] #column of totals
+total_t12_value = t12_df.columns[-2] #column of totals
 
-total_value_current_other_income = t12_df.loc[34, total_values]
+total_value_current_other_income = t12_df.loc[34, total_t12_value]
 
 current_other_income_df = pd.DataFrame({
     'Current Other Income' : '',
@@ -299,10 +302,10 @@ annual_growth_rates_df.set_index('Metric', inplace=True)
 
 #########################__________Utilities____________################################
 
-gas_electricity_fees = t12_df.loc[100, total_values]
-water_sewer_fees = t12_df.loc[101, total_values]
-trash_fees = t12_df.loc[102, total_values]
-other_utility_fees = t12_df.loc[103, total_values]
+gas_electricity_fees = t12_df.loc[100, total_t12_value]
+water_sewer_fees = t12_df.loc[101, total_t12_value]
+trash_fees = t12_df.loc[102, total_t12_value]
+other_utility_fees = t12_df.loc[103, total_t12_value]
 total_utilities_fees = gas_electricity_fees + water_sewer_fees + trash_fees + other_utility_fees
 
 utilities_df = pd.DataFrame({
@@ -317,25 +320,19 @@ utilities_df = pd.DataFrame({
 #########################__________T-1 Annulized Revenue____________################################
 
 # Find the last available month (excluding 'Total')
-last_month = t12_df.columns[-3] 
+#last_month = t12_df.columns[-3]
 
-# Get the value in the last month on the 6th row
-rental_income = t12_df.loc[5, last_month]
+annual_rental_income = t12_df.loc[5, total_t12_value]
 
-# Multiply the value by 12 to get the annual rental income
-annual_rental_income = rental_income * 12
+annual_vacancy_loss = t12_df.loc[10, total_t12_value]
 
-vacancy_loss = t12_df.loc[10, last_month]
+loss_to_lease = t12_df.loc[6, total_t12_value]
 
-annual_vacancy_loss = vacancy_loss * 12
+concession = t12_df.loc[11, total_t12_value]
 
-loss_to_lease = t12_df.loc[6, last_month]
+bad_debt = t12_df.loc[12, total_t12_value]
 
-concession = t12_df.loc[11, last_month]
-
-bad_debt = t12_df.loc[12, last_month]
-
-concession_baddebt_losstolease = (loss_to_lease + concession + bad_debt) * 12
+concession_baddebt_losstolease = loss_to_lease + concession + bad_debt
 
 net_rental_income = concession_baddebt_losstolease + annual_vacancy_loss + annual_rental_income
 
@@ -353,25 +350,25 @@ t1_annulized_revenue_df = pd.DataFrame({
 
 #########################__________T-12 Operating Expenses____________################################
 
-administrative_fees = t12_df.loc[48, total_values]
+administrative_fees = t12_df.loc[48, total_t12_value]
 
-general_fees = t12_df.loc[56, total_values] + t12_df.loc[57, total_values] + t12_df.loc[58, total_values]
+general_fees = t12_df.loc[56, total_t12_value] + t12_df.loc[57, total_t12_value] + t12_df.loc[58, total_t12_value]
 
 general_and_administrative = administrative_fees + general_fees
 
-marketing_fees = t12_df.loc[52, total_values]
+marketing_fees = t12_df.loc[52, total_t12_value]
 
-management_fees = t12_df.loc[55, total_values]
+management_fees = t12_df.loc[55, total_t12_value]
 
-total_payroll = t12_df.loc[73, total_values]
+total_payroll = t12_df.loc[73, total_t12_value]
 
-turnover_make_ready = t12_df.loc[77, total_values]
+turnover_make_ready = t12_df.loc[77, total_t12_value]
 
-repairs_maintenance = t12_df.loc[90, total_values] + t12_df.loc[97, total_values]
+repairs_maintenance = t12_df.loc[90, total_t12_value] + t12_df.loc[97, total_t12_value]
 
-property_taxes = t12_df.loc[107, total_values]
+property_taxes = t12_df.loc[107, total_t12_value]
 
-insurance_fees = t12_df.loc[108, total_values]
+insurance_fees = t12_df.loc[108, total_t12_value]
 
 total_expenses = general_and_administrative + marketing_fees + management_fees + total_payroll + turnover_make_ready + repairs_maintenance + property_taxes + insurance_fees + total_utilities_fees
 
@@ -677,6 +674,7 @@ LTV_refinance = 80 / 100
 closing_costs_sale_price_percentage = 3 / 100
 yearly_exit_cap_rate_increment = 5 / 100
 exit_cap_rate = cap_rate + (yearly_exit_cap_rate_increment / 12 * hold_period)
+target_ltv = 75 / 100
 
 try:
     total_capex_budget_per_unit = (asset_management_fee + upfront_capex) / total_units
@@ -827,6 +825,74 @@ sale_details_df = pd.DataFrame({
     'Sale Details': '',
     'Sale Price': [0] 
 })  
+
+
+# default values fo the loan_amount_interest_rate_table_df:
+assumable_loan_preserve_ltv = 0 # get value from Loan file from DealEstate platform!
+assumable_loan_ltv = 0 # get value from Loan file from DealEstate platform!
+supplemental_ltv = 0 # get value from Loan file from DealEstate platform!
+total_ltv = 0 # get value from Loan file from DealEstate platform!
+
+assumable_loan_preserve_ltv = assumable_loan_preserve_ltv / purchase_price
+assumable_loan_ltv = assumable_loan_ltv / purchase_price
+
+sum_loans_ltv = assumable_loan_preserve_ltv + assumable_loan_ltv
+
+# Applying the Excel formula logic
+if sum_loans_ltv == 0:
+    supplemental_ltv = 0
+else:
+    supplemental_ltv = max(target_ltv - sum_loans_ltv, 0)
+
+total_ltv = assumable_loan_preserve_ltv + assumable_loan_ltv + supplemental_ltv
+
+
+percent_of_total_loans_amount_assumable_loan_preserve = 0
+percent_of_total_loans_amount_assumable_loan = 0
+percent_of_total_loans_amount_supplemental = 0
+percent_of_total_loans_amount_total = '' # leave that value to be empty
+
+try:
+    percent_of_total_loans_amount_assumable_loan_preserve = assumable_loan_preserve_ltv / total_ltv
+except ZeroDivisionError:
+    percent_of_total_loans_amount_assumable_loan_preserve = 0
+
+try:
+    percent_of_total_loans_amount_assumable_loan = assumable_loan_preserve_ltv / total_ltv
+except ZeroDivisionError:
+    percent_of_total_loans_amount_assumable_loan = 0
+
+try:
+    percent_of_total_loans_amount_supplemental = assumable_loan_preserve_ltv / total_ltv
+except ZeroDivisionError:
+    percent_of_total_loans_amount_supplemental = 0
+
+interest_rate_assumable_loan_preserve = 0
+interest_rate_assumable_loan = 0
+interest_rate_supplemental = 8 / 100
+
+# Ensure all values are floats for interest rates and integers for percentages
+interest_rates_loan_sum = float(interest_rate_assumable_loan_preserve) + \
+                          interest_rate_assumable_loan + \
+                          interest_rate_supplemental
+
+percentages_loan_sum = float(percent_of_total_loans_amount_assumable_loan_preserve) + \
+                       percent_of_total_loans_amount_assumable_loan + \
+                       percent_of_total_loans_amount_supplemental
+
+# Calculate total interest rate loan
+try:
+    interest_rate_loan_total = interest_rates_loan_sum + percentages_loan_sum
+except TypeError as e:
+    print(f"TypeError during addition: {e}")
+
+loan_amount_interest_rate_table_df = pd.DataFrame({ # change all the '' with the values from Loan file from DealEstate platform!
+    '': ['Amount', 'LTV', 'Percent of total loans amount', 'Interest Rate'],
+    'Assumable Loan Preserve': ['', assumable_loan_preserve_ltv, percent_of_total_loans_amount_assumable_loan_preserve, interest_rate_assumable_loan_preserve],
+    'Assumable Loan':  ['', assumable_loan_ltv, percent_of_total_loans_amount_assumable_loan, interest_rate_assumable_loan],
+    'Supplemental': ['', supplemental_ltv, percent_of_total_loans_amount_supplemental, interest_rate_supplemental],
+    'TOTAL': ['', total_ltv, percent_of_total_loans_amount_total, interest_rate_loan_total]
+}) 
 
 
 
@@ -1509,6 +1575,7 @@ with pd.ExcelWriter(output_file_path) as writer:
     refinance_information_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=12, startrow = 1)
     exit_assumptions_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=12, startrow = 18)
     sale_details_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=12, startrow = 26)
+    loan_amount_interest_rate_table_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=1, startrow = 37)
     
 
     # Monthly CF sheet output:
