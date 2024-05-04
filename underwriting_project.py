@@ -123,9 +123,8 @@ stabilized_rent_df = pd.DataFrame({
 #########################__________Stabilized Rents Table And Comps____________################################
 
 zipcode = 76118
-property_class = 'Class C'
+property_class = 'Class A'
 quarter = '2023 Q3'
-total_cost_per_unit = 432000 # change that to take from snapshot!
 
 # Filter Data Frame by a given zipcode
 submarkets_for_given_zipcode = submarket_zipcode.loc[submarket_zipcode['PostalCode'] == zipcode, 'SubmarketName']
@@ -157,6 +156,7 @@ if not submarkets_for_given_zipcode.empty:
             average_rent_unit = filtered_rent_unit.mean()
             average_rent_sf = filtered_rent_sf.mean()
             average_market_price = market_values_array.mean()
+            average_unit_footage = average_rent_unit / average_rent_sf
             cap_rate = cap_rate * 100
 
             print(f"Average vacancy rate for zipcode {zipcode}, {property_class}, {quarter}: {average_vacancy_rate:.2f}%")
@@ -165,32 +165,33 @@ if not submarkets_for_given_zipcode.empty:
             print(f"Cap rate for zipcode {zipcode}, {property_class}, {quarter}: {cap_rate:.2f}%")
 
             comps_table_df = pd.DataFrame({
-                'Comps Metric': ['Average Vacancy Rate', 'Average Rent per Unit', 'Average Rent per SF', 'Market Price Rent Roll'],
-                'Comps Value': [f'{average_vacancy_rate:.2f}%', f'${average_rent_unit:.2f}', f'${average_rent_sf:.2f}', f'${average_market_price:.2f}' ]
-            })
-                
-            def adjust_price_rent_month(row):
+                'Comps Metric': ['Average Vacancy Rate', 'Average Rent per Unit', 'Average Rent per SF', 'Average Unit Footage', 'Market Price Rent Roll'],
+                'Comps Value': [f'{average_vacancy_rate:.2f}%', f'${average_rent_unit:.2f}', f'${average_rent_sf:.2f}', f'SF {average_unit_footage:.2f}', f'${average_market_price:.2f}' ]
+            })              
+
+
+            def stabilized_rent_comps(row):
                 if average_vacancy_rate > 10:
                     if row['Rent/Month'] == 0:
                         return 0
                     else:
-                        return (row['Rent/Month'] + market) / 2
-                else:
-                    return row['Rent/Month']
-            
-            def adjust_price_per_sf(row):
+                        return (row['Rent/Month'] + (row['SF'] * average_rent_sf)) / 2
+                    
+
+            def adjust_to_comps_price_per_sf(row):
                 if average_vacancy_rate > 10:
-                    if row['Stabilized Rent/Month'] == 0:  # Assuming 'Stabilized Rent/Month' is the new stabilized rent column
-                        return 0  # If rent is 0, set $/SF to 0
+                    if row['Stabilized Rent/Month'] == 0:
+                        return 0
                     else:
-                        return row['Stabilized Rent/Month'] / row['SF']  # Calculate $/SF based on stabilized rent and SF
+                        return row['Stabilized Rent/Month'] / row['SF']
                 else:
-                    return row['$/SF']  # If vacancy rate is low, keep the original $/SF
+                    return row['$/SF']
+                               
                 
             # Apply the functions across the DataFrame
             #stabilized_rent_df['Stabilized Rent/Month'] = in_place_rents_table_df.apply(adjust_price_rent_month, axis=1)
-            stabilized_rent_df['Stabilized Rent/Month'] = market_values_array    
-            stabilized_rent_df['Stabilized $/SF'] = stabilized_rent_df.apply(adjust_price_per_sf, axis=1)
+            stabilized_rent_df['Stabilized Rent/Month'] = in_place_rents_table_df.apply(stabilized_rent_comps, axis=1)
+            stabilized_rent_df['Stabilized $/SF'] = stabilized_rent_df.apply(adjust_to_comps_price_per_sf, axis=1)         
 
             stabilized_rent_df = stabilized_rent_df.sort_values(by=['Type'], ascending=False)
 
@@ -894,6 +895,70 @@ loan_amount_interest_rate_table_df = pd.DataFrame({ # change all the '' with the
     'TOTAL': ['', total_ltv, percent_of_total_loans_amount_total, interest_rate_loan_total]
 }) 
 
+cost_per_item_vynil_wood_flooring = 3000
+cost_per_item_bathroom = 4000
+cost_per_item_granite_quartz_countertop = 3000
+cost_per_item_stainless_steel_appliances = 2500
+cost_per_item_cabinets = 1000
+cost_per_item_backsplash = 800
+cost_per_item_lighting_fixtures = 800
+cost_per_item_baseboard = 800
+cost_per_item_paiting = 2000
+cost_per_item_washer_dryer = 1000
+
+'''upgrade_budget_table_df = pd.DataFrame({
+    '': ['Upgrade Budget',	'Full Reno Budget',	'Cost per Item'],
+    'Vynil Wood Flooring': [cost_per_item_vynil_wood_flooring, cost_per_item_vynil_wood_flooring]
+    'Bathroom':
+    'Granite/Quartz Countertop':
+    'Stainless Steel Appliances':
+    'Cabinets':
+    'Backsplash':
+    'Lighting/Fixtures':
+    'Baseboard':
+    'Paiting':
+    'Washer/Dryer':
+})'''
+
+def create_upgrade_selection_df(chosen_items):
+    # Upgrade costs dictionary
+    upgrades = {
+        "Vynil Wood Flooring": cost_per_item_vynil_wood_flooring,
+        "Bathroom": cost_per_item_bathroom,
+        "Granite/Quartz Countertop": cost_per_item_granite_quartz_countertop,
+        "Stainless Steel Appliances": cost_per_item_stainless_steel_appliances,
+        "Cabinets": cost_per_item_cabinets,
+        "Backsplash": cost_per_item_backsplash,
+        "Lighting/Fixtures": cost_per_item_lighting_fixtures,
+        "Baseboard": cost_per_item_baseboard,
+        "Paiting": cost_per_item_paiting,
+        "Washer/Dryer": cost_per_item_washer_dryer
+    }
+
+    # Initializing DataFrame
+    upgrade_budget_table_df = pd.DataFrame.from_dict(upgrades, orient='index', columns=['Cost per Item'])
+    
+    # Calculating columns based on chosen items
+    upgrade_budget_table_df['Upgrade Budget'] = upgrade_budget_table_df.index.map(lambda x: upgrades[x] if x in chosen_items else 0)
+    upgrade_budget_table_df['Full Reno Budget'] = upgrade_budget_table_df['Cost per Item']
+
+    # Adding total sums for each column
+    total_row = pd.DataFrame(upgrade_budget_table_df.sum()).T.rename(index={0: 'Total Cost'})
+    upgrade_budget_table_df = pd.concat([upgrade_budget_table_df, total_row])
+
+
+    # Resetting index to move upgrade names into a regular column
+    upgrade_budget_table_df.reset_index(inplace=True)
+    upgrade_budget_table_df.rename(columns={'index': 'Upgrade Name'}, inplace=True)
+
+    # Adjusting column order for clarity
+    upgrade_budget_table_df = upgrade_budget_table_df[['Upgrade Name', 'Upgrade Budget', 'Full Reno Budget', 'Cost per Item']]
+
+    return upgrade_budget_table_df
+
+renovation_chosen_items = ['Granite/Quartz Countertop', 'Stainless Steel Appliances', 'Cabinets', 'Backsplash', 'Lighting/Fixtures', 'Washer/Dryer'] # indicate here items for renovation
+
+upgrade_budget_table_df = create_upgrade_selection_df(renovation_chosen_items)
 
 
 ##################################!!!!!!!!!!!!!!!!!!!________________Monthly CF Sheet____________!!!!!!!!!!!!!!!!###############################
@@ -1260,7 +1325,7 @@ else:
     noi_12_months = 0  # No refinancing if refinance_month is not before hold_period
 
 # Step 2: Calculate the potential loan amount from NOI
-potential_loan_amount = (noi_12_months / cap_rate) * LTV_refinance
+potential_loan_amount = (noi_12_months / cap_rate * 100) * LTV_refinance
 
 # Step 3: Determine the minimum of the max allowed loan or the calculated potential loan
 loan_amount_refinance = min(max_allowed_loan_amount, potential_loan_amount if noi_12_months > 0 else 0)
@@ -1491,6 +1556,7 @@ with pd.ExcelWriter(output_file_path) as writer:
     current_col = start_col
     row_heights = []  # List to store heights of DataFrames in the current row
     last_row_end = start_row  # This will hold the end position of special placement cases
+    last_projected_operating_expenses_row = None
 
     for idx, (df, start_new_row) in enumerate(dataframes):
         if start_new_row:
@@ -1514,7 +1580,14 @@ with pd.ExcelWriter(output_file_path) as writer:
             current_row = last_row_end + 2 # Place directly under property_tax_growth_df
 
         if df is net_operating_income_df:
-            current_row = max(current_row, last_row_end + row_spacing)  # Start new row properly spaced from the last special case
+            current_row = max(current_row, last_row_end + row_spacing)  
+
+        if df is projected_operating_expenses_df:
+            last_column_after_projected_operating_expenses = current_col - 2
+
+        if df is projected_net_operating_income_df:
+            if last_column_after_projected_operating_expenses is not None:
+                current_col = last_column_after_projected_operating_expenses + 2
 
 
         df.to_excel(writer, sheet_name='Revenue & Expenses', index=False, startcol=current_col, startrow=current_row)
@@ -1571,12 +1644,12 @@ with pd.ExcelWriter(output_file_path) as writer:
     acquisition_loan_information_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=6, startrow = 1)
     capital_and_operating_details_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=6, startrow = 11)
     sources_at_close_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=6, startrow = 17)
-    total_uses_at_close_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=6, startrow = 22)
+    total_uses_at_close_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=6, startrow = 23)
     refinance_information_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=12, startrow = 1)
     exit_assumptions_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=12, startrow = 18)
     sale_details_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=12, startrow = 26)
-    loan_amount_interest_rate_table_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=1, startrow = 37)
-    
+    upgrade_budget_table_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=1, startrow = 37)
+    loan_amount_interest_rate_table_df.to_excel(writer, sheet_name='Snapshot', index=False, startcol=6, startrow = 37)
 
     # Monthly CF sheet output:
     
